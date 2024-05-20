@@ -24,13 +24,13 @@ def top_k_top_p_filtering(
 
     return logits
 
-def generate(
-    model: nn.Module, queries: List[torch.LongTensor], txt_len: int = 20, top_k: int = 0, top_p: float = 1.0,
-    temperature: int = 0.3
+def respond_to_batch(
+    model: nn.Module, queries: List[torch.LongTensor], termination_token: torch.LongTensor, model_max_length: int, 
+    top_k: int = 0, top_p: float = 1.0, temperature: int = 0.3, 
 ) -> torch.LongTensor:
     """Sample text from language model."""
     input_ids = queries
-    for _i in range(txt_len):
+    for _i in range(model_max_length):
         # Get Logits
         outputs = model(input_ids)
         next_token_logits = outputs[0][:, -1, :]
@@ -43,5 +43,7 @@ def generate(
         probs = F.softmax(next_token_logits, dim=-1)
         next_token = torch.multinomial(probs, num_samples=1).squeeze(1)
         input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
+        if next_token == termination_token:
+            break
         
-    return input_ids[:, -txt_len:]
+    return input_ids[:, -model_max_length:]
